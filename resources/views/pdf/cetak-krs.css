@@ -1,0 +1,53 @@
+
+  .boxkartu {
+    border: 0.2mm dashed #220044;
+    padding: 2mm;
+  }
+
+  .logo {
+    width: 2cm;
+    height: 2cm;
+    float: left;
+  }
+
+  .logo img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .kop-header {
+    float: left;
+    padding-left: 1mm;
+    vertical-align: middle;
+  }
+
+  .kolom1 {
+    width: 25%;
+    float: left;
+    margin-bottom: 6pt;
+    font-family: 'Arial', sans-serif;
+  }
+
+  .kolom2 {
+    width: 75%;
+    float: left;
+    margin-bottom: 6pt;
+    font-family: 'Arial', sans-serif;
+  }
+
+  .colttd1 {
+    width: 50%;
+    float: left;
+    font-family: Tahoma, Helvetica, sans-serif;
+  }
+
+  .colttd2 {
+    width: 50%;
+    float: left;
+    font-family: Tahoma, Helvetica, sans-serif;
+  }
+
+  body {
+    font-family: 'Arial', sans-serif;
+  }
