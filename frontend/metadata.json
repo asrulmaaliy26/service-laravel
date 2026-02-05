@@ -1,0 +1,8 @@
+{
+  "name": "EduSmart CBT - Proctored Examination System",
+  "description": "A comprehensive Computer Based Testing platform with four roles: Admin (data management), Teacher (exam creation), Supervisor (real-time video monitoring and exam activation), and Student (proctored exam environment).",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
