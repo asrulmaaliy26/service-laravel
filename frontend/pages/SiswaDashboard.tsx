@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Exam, StudentActivity, QuestionType, Answer } from '../types';
 import { Clock, Play, AlertCircle, Maximize2, Camera, ShieldAlert, MonitorCheck, ArrowRight, VideoOff, ImageIcon, X, Paperclip, FileText, Download, ArrowLeft, ScanSearch, BookOpen } from 'lucide-react';
+import { getBackendUrl } from '../config';
 
 interface SiswaDashboardProps {
   user: User;
@@ -46,7 +47,7 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
     }
 
     try {
-      await fetch('https://siakad.staialmannan.ac.id/api/violations/save', {
+      await fetch(`${getBackendUrl()}/api/violations/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -323,6 +324,13 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
     }
   }, [externalExamUrl, isExamStarted]);
 
+  // Auto-start camera when entering internal exam detail
+  useEffect(() => {
+    if (activeExam && !isExamStarted && !stream && !cameraError) {
+      startCamera();
+    }
+  }, [activeExam]);
+
   // Auto-register presence for external exams
   useEffect(() => {
     if (externalExamUrl && !isExamStarted) {
@@ -346,22 +354,62 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+      console.log("Meminta akses kamera...");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const errorMsg = "Browser tidak mendukung camera API atau tidak di lingkungan secure (HTTPS/Localhost).";
+        console.error(errorMsg);
+        alert(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 20 }
+        },
+        audio: false
+      });
+
+      console.log("Kamera berhasil diakses:", mediaStream.id);
       setStream(mediaStream);
       setCameraError(false);
       saveViolation('CAMERA_ON', 'Kamera diaktifkan.');
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Gagal akses kamera:", err);
       setCameraError(true);
       setStream(null);
-      saveViolation('CAMERA_ERROR', 'Terjadi kesalahan saat mengaktifkan kamera.');
+
+      let friendlyMsg = "Terjadi kesalahan saat mengaktifkan kamera.";
+      if (err.name === 'NotAllowedError') friendlyMsg = "Akses kamera ditolak. Silakan izinkan kamera di browser Anda.";
+      else if (err.name === 'NotFoundError') friendlyMsg = "Kamera tidak ditemukan pada perangkat Anda.";
+      else if (err.name === 'NotReadableError') friendlyMsg = "Kamera sedang digunakan oleh aplikasi lain.";
+
+      alert(friendlyMsg);
+      saveViolation('CAMERA_ERROR', `Kesalahan kamera: ${err.name} - ${err.message}`);
     }
   };
 
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log("Track kamera dihentikan:", track.label);
+      });
       setStream(null);
       saveViolation('CAMERA_OFF', 'Kamera dimatikan.');
+    }
+  };
+
+  // Helper untuk memasang stream ke video element secara otomatis
+  const attachVideoRef = (el: HTMLVideoElement | null) => {
+    if (el) {
+      // @ts-ignore
+      videoRef.current = el;
+      if (stream && el.srcObject !== stream) {
+        console.log("Menempelkan stream ke elemen video...");
+        el.srcObject = stream;
+      }
     }
   };
 
@@ -443,7 +491,7 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
           <div className="w-1/4 h-full bg-slate-900 flex flex-col p-4 gap-4 border-l border-slate-700">
             {/* Camera Feed */}
             <div className="rounded-xl overflow-hidden border-2 border-slate-700 bg-black aspect-video relative shadow-lg">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+              <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
               <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-[9px] font-black text-emerald-400 uppercase border border-emerald-400/20">
                 <ScanSearch size={10} className="animate-pulse" /> Monitoring Aktif
               </div>
@@ -564,7 +612,7 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
           <div className="bg-indigo-50 p-6 rounded-2xl flex items-center gap-6">
             <div className="w-32 h-24 bg-black rounded-xl overflow-hidden relative shadow-inner">
               {isCameraReady ? (
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-indigo-200 bg-slate-800"><Camera size={32} /></div>
               )}
@@ -628,7 +676,7 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
           </div>
           <div className="w-80 bg-slate-900 p-6 flex flex-col gap-6">
             <div className="rounded-2xl overflow-hidden border-2 border-slate-700 bg-black aspect-video relative">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+              <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
               <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-[9px] font-black text-emerald-400 uppercase border border-emerald-400/20">
                 <ScanSearch size={10} className="animate-pulse" /> Monitoring Aktif
               </div>
@@ -656,7 +704,7 @@ const SiswaDashboard: React.FC<SiswaDashboardProps> = ({ user, exams, setActivit
           <h2 className="text-3xl font-black text-slate-800">{activeExam.title}</h2>
           <div className="bg-indigo-50 p-6 rounded-2xl flex items-center gap-6">
             <div className="w-24 h-24 bg-black rounded-xl overflow-hidden relative shadow-inner">
-              {isCameraReady ? (<video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />) : (<div className="w-full h-full flex items-center justify-center text-indigo-200 bg-slate-800"><Camera size={32} /></div>)}
+              {isCameraReady ? (<video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />) : (<div className="w-full h-full flex items-center justify-center text-indigo-200 bg-slate-800"><Camera size={32} /></div>)}
             </div>
             <div className="flex-1">
               <h4 className="font-bold text-indigo-900">Validasi Kamera</h4>
